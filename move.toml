@@ -1,0 +1,11 @@
+[package]
+name = "onchain_fund"
+version = "0.1.0"
+authors = ["Your Name <your.email@example.com>"]
+license = "Apache-2.0"
+
+[addresses]
+onchain_fund = "0x0"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet" }
