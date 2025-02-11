@@ -187,3 +187,7 @@ module 0x0::onchain_fund {
         fund.fee_config.performance_fee_bps = new_performance_fee_bps;
     }
 }
+
+// Client/Server API Version Mismatch:
+Output shows a warning that the client API version (1.35.0) does not match the server version (1.42.2). While this is only a warning, in some cases it can cause issues if there are breaking changes between versions. Make sure you update your Sui CLI so that both the client and server versions are in sync.
+
