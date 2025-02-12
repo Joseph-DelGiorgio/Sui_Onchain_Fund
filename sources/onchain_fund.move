@@ -25,14 +25,13 @@ module 0x0::onchain_fund {
     const EUnauthorized: u64 = 1;
     const EInvalidFeeParameter: u64 = 2;
 
-    // Fund token – used as a one-time witness when creating the currency.
-    struct FundToken has drop {}
+    // One Time Witness: Name must be the module name in uppercase.
+    struct ONCHAIN_FUND has drop {}
 
     // Main Fund struct
     struct Fund has key {
         id: UID,
-        treasury_cap: TreasuryCap<FundToken>,
-        // Fully qualify the table type since importing an alias for Table leads to unbound module errors.
+        treasury_cap: TreasuryCap<ONCHAIN_FUND>,
         asset_vault: sui::table::Table<String, Balance<SUI>>,
         total_nav: u64,
         fee_config: FeeSchedule,
@@ -46,7 +45,7 @@ module 0x0::onchain_fund {
         last_fee_collection: u64,
     }
 
-    // Events
+    // Events for off-chain tracking.
     struct DepositEvent has copy, drop {
         depositor: address,
         amount: u64,
@@ -57,10 +56,11 @@ module 0x0::onchain_fund {
         amount: u64,
     }
 
-    // Initialize the fund
-    fun init(ctx: &mut TxContext) {
+    // The module initializer.
+    // Note that the first parameter must be the one-time witness (ONCHAIN_FUND) supplied automatically at publish.
+    fun init(witness: ONCHAIN_FUND, ctx: &mut TxContext) {
         let (treasury_cap, metadata) = create_currency(
-            FundToken {},
+            witness,
             9,
             b"FUND",
             b"Investment Fund Token",
@@ -81,11 +81,10 @@ module 0x0::onchain_fund {
             manager: sender(ctx),
         };
         transfer::share_object(fund);
-        // Freeze the metadata object so that its properties are locked, which satisfies the one-time witness requirements.
         transfer::public_freeze_object(metadata);
     }
 
-    // Deposit SUI into the fund
+    // Deposit SUI into the fund.
     public entry fun deposit(
         fund: &mut Fund,
         payment: Coin<SUI>,
@@ -113,10 +112,10 @@ module 0x0::onchain_fund {
         });
     }
 
-    // Withdraw SUI from the fund
+    // Withdraw SUI from the fund.
     public entry fun withdraw(
         fund: &mut Fund,
-        shares: Coin<FundToken>,
+        shares: Coin<ONCHAIN_FUND>,
         ctx: &mut TxContext
     ) {
         let shares_value = value(&shares);
@@ -135,14 +134,14 @@ module 0x0::onchain_fund {
         });
     }
 
-    // Collect management and performance fees (only callable by the manager)
+    // Collect management and performance fees (restricted to the fund manager).
     public entry fun collect_fees(fund: &mut Fund, ctx: &mut TxContext) {
         assert!(sender(ctx) == fund.manager, EUnauthorized);
         let current_epoch = epoch(ctx);
         let epochs_passed = current_epoch - fund.fee_config.last_fee_collection;
         let management_fee = (fund.total_nav * fund.fee_config.management_fee_bps * epochs_passed)
             / (10000 * 365);
-        let performance_fee = 0; // (Implement performance fee calculation as needed)
+        let performance_fee = 0; // Implement performance fee calculation as needed.
         let total_fee = management_fee + performance_fee;
         assert!(total_fee <= fund.total_nav, EInsufficientBalance);
         let key = utf8(b"SUI");
@@ -154,7 +153,7 @@ module 0x0::onchain_fund {
         fund.fee_config.last_fee_collection = current_epoch;
     }
 
-    // Update fee parameters (only callable by the manager)
+    // Update fee parameters (restricted to the fund manager).
     public entry fun update_fees(
         fund: &mut Fund,
         new_management_fee_bps: u64,
