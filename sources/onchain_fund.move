@@ -2,20 +2,9 @@ module 0x0::onchain_fund {
     use sui::object::{Self, UID};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext, epoch, sender};
-    use sui::coin::{
-        Self,
-        Coin,
-        TreasuryCap,
-        create_currency,
-        value,
-        mint,
-        burn,
-        total_supply,
-        into_balance,
-        from_balance
-    };
+    use sui::coin::{Self, Coin, TreasuryCap, create_currency, total_supply, mint, burn, into_balance, from_balance};
     use sui::balance::{Self, Balance, zero, join, split};
-    use sui::table::{Self, Table, contains, add, borrow_mut};
+    use sui::table::{Self, Table};
     use sui::sui::SUI;
     use sui::event;
     use std::string::{Self, String};
@@ -59,7 +48,7 @@ module 0x0::onchain_fund {
 
     // Initialize the fund
     fun init(ctx: &mut TxContext) {
-        let (treasury_cap, metadata) = coin::create_currency(
+        let (treasury_cap, metadata) = create_currency(
             FundToken {},
             9,
             b"FUND",
@@ -94,18 +83,15 @@ module 0x0::onchain_fund {
     ) {
         let deposit_value = coin::value(&payment);
 
-        // Reinitialize the key to pass an owned String.
-        let key1 = string::utf8(b"SUI");
-        if (!table::contains(&fund.asset_vault, key1)) {
-            let key2 = string::utf8(b"SUI");
-            table::add(&mut fund.asset_vault, key2, zero<SUI>());
+        let key = string::utf8(b"SUI");
+        if (!table::contains(&fund.asset_vault, key)) {
+            table::add(&mut fund.asset_vault, key, zero<SUI>());
         };
 
-        let key3 = string::utf8(b"SUI");
-        let balance_ref = table::borrow_mut(&mut fund.asset_vault, key3);
+        let balance_ref = table::borrow_mut(&mut fund.asset_vault, key);
         join(balance_ref, into_balance(payment));
 
-        let total_supply = coin::total_supply(&fund.treasury_cap);
+        let total_supply = total_supply(&fund.treasury_cap);
         let shares_to_mint = if (total_supply == 0) {
             deposit_value
         } else {
@@ -113,7 +99,7 @@ module 0x0::onchain_fund {
         };
 
         fund.total_nav = fund.total_nav + deposit_value;
-        let shares = coin::mint(&mut fund.treasury_cap, shares_to_mint, ctx);
+        let shares = mint(&mut fund.treasury_cap, shares_to_mint, ctx);
         transfer::public_transfer(shares, sender(ctx));
 
         event::emit(DepositEvent {
@@ -129,17 +115,17 @@ module 0x0::onchain_fund {
         ctx: &mut TxContext
     ) {
         let shares_value = coin::value(&shares);
-        let total_supply = coin::total_supply(&fund.treasury_cap);
+        let total_supply = total_supply(&fund.treasury_cap);
         let withdraw_amount = (shares_value * fund.total_nav) / total_supply;
 
-        coin::burn(&mut fund.treasury_cap, shares);
+        burn(&mut fund.treasury_cap, shares);
         fund.total_nav = fund.total_nav - withdraw_amount;
 
-        let key1 = string::utf8(b"SUI");
-        let balance_ref = table::borrow_mut(&mut fund.asset_vault, key1);
+        let key = string::utf8(b"SUI");
+        let balance_ref = table::borrow_mut(&mut fund.asset_vault, key);
         let withdrawn = split(balance_ref, withdraw_amount);
         
-        let withdrawn_coin = coin::from_balance(withdrawn, ctx);
+        let withdrawn_coin = from_balance(withdrawn, ctx);
         transfer::public_transfer(withdrawn_coin, sender(ctx));
 
         event::emit(WithdrawEvent {
@@ -161,11 +147,11 @@ module 0x0::onchain_fund {
         let total_fee = management_fee + performance_fee;
         assert!(total_fee <= fund.total_nav, EInsufficientBalance);
 
-        let key1 = string::utf8(b"SUI");
-        let balance_ref = table::borrow_mut(&mut fund.asset_vault, key1);
+        let key = string::utf8(b"SUI");
+        let balance_ref = table::borrow_mut(&mut fund.asset_vault, key);
         let fee_balance = split(balance_ref, total_fee);
         
-        let fee_coin = coin::from_balance(fee_balance, ctx);
+        let fee_coin = from_balance(fee_balance, ctx);
         transfer::public_transfer(fee_coin, fund.manager);
 
         fund.total_nav = fund.total_nav - total_fee;
@@ -187,7 +173,4 @@ module 0x0::onchain_fund {
         fund.fee_config.performance_fee_bps = new_performance_fee_bps;
     }
 }
-
-// Client/Server API Version Mismatch:
-Output shows a warning that the client API version (1.35.0) does not match the server version (1.42.2). While this is only a warning, in some cases it can cause issues if there are breaking changes between versions. Make sure you update your Sui CLI so that both the client and server versions are in sync.
 
