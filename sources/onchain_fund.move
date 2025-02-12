@@ -1,9 +1,9 @@
 module 0x0::onchain_fund {
     use sui::object::{Self, UID};
     use sui::transfer;
-    use sui::tx_context::{Self, TxContext, epoch, sender};
+    use sui::tx_context::{TxContext, epoch, sender};
     use sui::coin::{Self, Coin, TreasuryCap, create_currency, total_supply, mint, burn, into_balance, from_balance};
-    use sui::balance::{Self, Balance, zero, join, split};
+    use sui::balance::{Balance, zero, join, split};
     use sui::table::{Self, Table};
     use sui::sui::SUI;
     use sui::event;
@@ -173,4 +173,3 @@ module 0x0::onchain_fund {
         fund.fee_config.performance_fee_bps = new_performance_fee_bps;
     }
 }
-
